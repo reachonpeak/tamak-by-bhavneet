@@ -1963,6 +1963,16 @@ h1,h2,h3,h4{font-family:var(--serif);font-weight:500;line-height:1.05;letter-spa
 @media(max-width:860px){.pdp{grid-template-columns:1fr;gap:1.6rem}}
 .pdp__gallery{display:flex;flex-direction:column;gap:.7rem}
 .pdp__main{position:relative;aspect-ratio:4/5;border-radius:5px;overflow:hidden;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.pdp__main-img{transition:transform .2s ease-out}
+@media(hover:hover) and (pointer:fine){
+  .pdp__main.is-zooming .pdp__main-img{
+    transform:scale(2.2);
+    transform-origin:var(--zx,50%) var(--zy,50%);
+    transition:transform .12s ease-out;
+    cursor:zoom-out;
+  }
+  .pdp__main:not(.is-zooming){cursor:zoom-in}
+}
 .pdp__nav{
   position:absolute;top:50%;transform:translateY(-50%);
   width:40px;height:40px;border-radius:50%;

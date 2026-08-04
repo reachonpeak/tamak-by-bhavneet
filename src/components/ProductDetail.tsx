@@ -13,7 +13,9 @@ export default function ProductDetail({ p }: { p: Product }) {
   const { addToBag, toggleWish, isWished, toast } = useStore();
   const [active, setActive] = useState(0);
   const [qty, setQty] = useState(1);
+  const [zooming, setZooming] = useState(false);
   const touch = useRef<{ x0: number | null; dx: number }>({ x0: null, dx: 0 });
+  const mainRef = useRef<HTMLDivElement>(null);
   const saved = isWished(p.id);
 
   // use product gallery directly
@@ -34,7 +36,9 @@ export default function ProductDetail({ p }: { p: Product }) {
     <div className="pdp">
       <div className="pdp__gallery">
         <div
-          className={`pdp__main frame ${p.panel}`}
+          ref={mainRef}
+          className={`pdp__main frame ${p.panel}${zooming ? " is-zooming" : ""}`}
+          onMouseEnter={() => setZooming(true)}
           onTouchStart={(e) => {
             if (gallery.length <= 1) return;
             touch.current = { x0: e.touches[0].clientX, dx: 0 };
@@ -63,6 +67,13 @@ export default function ProductDetail({ p }: { p: Product }) {
             touch.current = { x0: e.clientX, dx: 0 };
           }}
           onMouseMove={(e) => {
+            if (touch.current.x0 === null) {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const xPct = ((e.clientX - rect.left) / rect.width) * 100;
+              const yPct = ((e.clientY - rect.top) / rect.height) * 100;
+              e.currentTarget.style.setProperty("--zx", `${xPct}%`);
+              e.currentTarget.style.setProperty("--zy", `${yPct}%`);
+            }
             if (gallery.length <= 1 || touch.current.x0 === null) return;
             const dx = e.clientX - touch.current.x0;
             if (Math.abs(dx) > 5) {
@@ -84,6 +95,7 @@ export default function ProductDetail({ p }: { p: Product }) {
           }}
           onMouseLeave={() => {
             touch.current.x0 = null;
+            setZooming(false);
           }}
         >
           {main?.url ? (
@@ -96,6 +108,7 @@ export default function ProductDetail({ p }: { p: Product }) {
               placeholder={main.blurDataURL ? "blur" : "empty"}
               blurDataURL={main.blurDataURL}
               style={{ objectFit: "cover" }}
+              className="pdp__main-img"
               draggable={false}
             />
           ) : (
