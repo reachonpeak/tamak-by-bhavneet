@@ -43,6 +43,7 @@ next-env.d.ts
 # raw source assets (huge, not deployed)
 _source/
 scripts/.product-manifest.json
+scripts/.backups/
 
 # env
 .env*.local
