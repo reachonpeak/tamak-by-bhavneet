@@ -9,12 +9,23 @@ import { useStore } from "./StoreProvider";
 
 const vb = (m: string) => (m === "mandala" ? "0 0 200 200" : "0 0 240 280");
 
+// Some mobile browsers still fire synthetic mouse events after a tap, which
+// would fight with the touch tap-to-zoom toggle below — only let real
+// hover-capable pointers (mice/trackpads) drive the mouse handlers.
+const isFinePointer = () =>
+  typeof window !== "undefined" && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
 export default function ProductDetail({ p }: { p: Product }) {
   const { addToBag, toggleWish, isWished, toast } = useStore();
   const [active, setActive] = useState(0);
   const [qty, setQty] = useState(1);
   const [zooming, setZooming] = useState(false);
-  const touch = useRef<{ x0: number | null; dx: number }>({ x0: null, dx: 0 });
+  const touch = useRef<{ x0: number | null; y0: number; dx: number; moved: boolean }>({
+    x0: null,
+    y0: 0,
+    dx: 0,
+    moved: false,
+  });
   const mainRef = useRef<HTMLDivElement>(null);
   const saved = isWished(p.id);
 
@@ -38,19 +49,42 @@ export default function ProductDetail({ p }: { p: Product }) {
         <div
           ref={mainRef}
           className={`pdp__main frame ${p.panel}${zooming ? " is-zooming" : ""}`}
-          onMouseEnter={() => setZooming(true)}
+          onMouseEnter={() => {
+            if (isFinePointer()) setZooming(true);
+          }}
           onTouchStart={(e) => {
-            if (gallery.length <= 1) return;
-            touch.current = { x0: e.touches[0].clientX, dx: 0 };
+            // Let nav-button taps through untouched — don't hijack them into a zoom toggle.
+            if ((e.target as HTMLElement).closest(".pdp__nav")) {
+              touch.current.x0 = null;
+              return;
+            }
+            const t = e.touches[0];
+            touch.current = { x0: t.clientX, y0: t.clientY, dx: 0, moved: false };
           }}
           onTouchMove={(e) => {
-            if (gallery.length <= 1 || touch.current.x0 === null) return;
-            touch.current.dx = e.touches[0].clientX - touch.current.x0;
+            if (touch.current.x0 === null) return;
+            const t = e.touches[0];
+            const dx = t.clientX - touch.current.x0;
+            const dy = t.clientY - touch.current.y0;
+            if (Math.abs(dx) > 8 || Math.abs(dy) > 8) touch.current.moved = true;
+            touch.current.dx = dx;
           }}
-          onTouchEnd={() => {
-            if (gallery.length <= 1 || touch.current.x0 === null) return;
-            const dx = touch.current.dx;
-            if (Math.abs(dx) > 40) {
+          onTouchEnd={(e) => {
+            if (touch.current.x0 === null) return;
+            const { dx, moved } = touch.current;
+            if (!moved) {
+              // A tap (no drag) toggles zoom, centered on the tapped point.
+              if (zooming) {
+                setZooming(false);
+              } else {
+                const t = e.changedTouches[0];
+                const rect = e.currentTarget.getBoundingClientRect();
+                e.currentTarget.style.setProperty("--zx", `${((t.clientX - rect.left) / rect.width) * 100}%`);
+                e.currentTarget.style.setProperty("--zy", `${((t.clientY - rect.top) / rect.height) * 100}%`);
+                setZooming(true);
+              }
+            } else if (gallery.length > 1 && Math.abs(dx) > 40) {
+              setZooming(false);
               if (dx < 0) {
                 setActive((prev) => (prev + 1) % gallery.length);
               } else {
@@ -64,10 +98,10 @@ export default function ProductDetail({ p }: { p: Product }) {
           }}
           onMouseDown={(e) => {
             if (gallery.length <= 1) return;
-            touch.current = { x0: e.clientX, dx: 0 };
+            touch.current = { x0: e.clientX, y0: e.clientY, dx: 0, moved: false };
           }}
           onMouseMove={(e) => {
-            if (touch.current.x0 === null) {
+            if (touch.current.x0 === null && isFinePointer()) {
               const rect = e.currentTarget.getBoundingClientRect();
               const xPct = ((e.clientX - rect.left) / rect.width) * 100;
               const yPct = ((e.clientY - rect.top) / rect.height) * 100;
