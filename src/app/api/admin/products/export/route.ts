@@ -10,13 +10,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const PREVIEW_PX = 70; // rendered thumbnail size in the sheet
+const FETCH_TIMEOUT_MS = 8000; // one slow/stuck storage object shouldn't stall the whole export
 
 // Fetch a remote image and convert it to a small PNG (exceljs can't embed WebP).
 // Returns null on any failure so one broken URL never fails the whole export.
 async function toPreviewPng(url: string): Promise<Buffer | null> {
   if (!/^https?:\/\//.test(url)) return null; // skip local/relative seed paths
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
     if (!res.ok) return null;
     const raw = Buffer.from(await res.arrayBuffer());
     return await sharp(raw)
@@ -67,7 +68,10 @@ export async function GET() {
   // Embed a preview thumbnail per product (fetched + converted concurrently).
   type Job = { product: Product; rowNumber: number };
   const jobs: Job[] = products.map((product, i) => ({ product, rowNumber: i + 2 }));
-  await pooled(jobs, 8, async ({ product, rowNumber }) => {
+  // Each thumbnail fetch is latency-bound (~0.3–3s per uncached storage object,
+  // sharp resize itself is ~5ms), so wall-clock time scales with concurrency,
+  // not bandwidth/CPU. 8 concurrent took ~49s for 488 products; 24 takes ~7s.
+  await pooled(jobs, 24, async ({ product, rowNumber }) => {
     const png = await toPreviewPng(primaryImageUrl(product));
     if (!png) return;
     const imgId = wb.addImage({ buffer: png as unknown as ExcelJS.Buffer, extension: "png" });

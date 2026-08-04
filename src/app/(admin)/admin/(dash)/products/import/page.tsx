@@ -61,6 +61,7 @@ export default function ImportProductsPage() {
           <li>Edit the rows — price, stock, name, category, description, etc.</li>
           <li>To add a product, add a new row and <b>leave its <code>id</code> blank</b>.</li>
           <li>Do <b>not</b> change or reorder the <code>id</code> column — it links each row to its product.</li>
+          <li>Set <code>status</code> to <code>Active</code> or <code>Inactive</code> to control whether a product is visible on the storefront.</li>
           <li>Save the file, then upload it below.</li>
         </ol>
         <p className="adm-sub" style={{ marginTop: ".8rem" }}>

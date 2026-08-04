@@ -48,6 +48,7 @@ export const COLUMNS: SheetColumn[] = [
   { key: "tone", header: "tone", width: 10, get: (p) => p.tone },
   { key: "primary_image_url", header: "primary_image_url (read-only)", width: 44, get: (p) => primaryImageUrl(p) },
   { key: "preview", header: "preview (read-only)", width: 16, get: () => "" },
+  { key: "status", header: "status", width: 10, get: (p) => (p.active === false ? "Inactive" : "Active") },
 ];
 
 /** Column key of the embedded photo-preview column (1-indexed position in the sheet). */
@@ -60,6 +61,10 @@ export const PREVIEW_COL_INDEX = COLUMNS.findIndex((c) => c.key === "preview") +
  */
 export function rowToDraft(row: Record<string, unknown>) {
   const name = str(row.name);
+  // Blank/missing "status" leaves a product's current active state alone —
+  // only an explicit Active/Inactive value should flip it.
+  const status = row.status !== undefined ? str(row.status).toLowerCase() : "";
+  const activePatch = status ? { active: status !== "inactive" } : {};
   return {
     name,
     slug: str(row.slug) || slugify(name),
@@ -80,5 +85,6 @@ export function rowToDraft(row: Record<string, unknown>) {
     panel: (str(row.panel) || "p-indigo") as Product["panel"],
     motif: (str(row.motif) || "paisley") as Product["motif"],
     tone: (str(row.tone) || "m-gold") as Product["tone"],
+    ...activePatch,
   };
 }
